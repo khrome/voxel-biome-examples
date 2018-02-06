@@ -1,0 +1,43 @@
+{
+    "name": "voxel-biome-examples",
+    "homepage": "https://github.com/khrome/voxel-biome-examples",
+    "version": "0.0.1",
+    "main": "server.js",
+    "description": "A voxel based crafting game based around worlds created and interconnected by player created portals",
+    "keywords": [
+        "voxel.js",
+        "voxel",
+        "biome"
+    ],
+    "author": "Abbey Hawk Sparrow <@khrome> (http://patternweaver.com)",
+    "contributors": [],
+    "bugs": {
+        "url": "https://github.com/khrome/voxel-biome-examples/issues"
+    },
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "git://github.com/khrome/voxel-biome-examples.git"
+    },
+    "private": true,
+    "dependencies": {
+        "browser-request": "^0.3.3",
+        "voxel-async-simulation": "*",
+        "voxel-biomes": "*",
+        "voxel-engine": "^0.20.2",
+        "voxel-fly": "^0.1.2",
+        "voxel-highlight": "0.0.10",
+        "voxel-player": "^0.1.0"
+    },
+    "scripts": {
+        "build-client": "browserify client.js -o /docs/client-app.js",
+        "client": "cd docs; python -m SimpleHTTPServer",
+        "server": "node server.js",
+        "app": "npm run build-client; npm run server"
+    },
+    "devDependencies": {},
+    "optionalDependencies": {},
+    "engines": {
+        "node": "*"
+    }
+}
