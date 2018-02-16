@@ -1,11 +1,11 @@
 var createGame = require('voxel-engine');
-var WorldBuilder = require('voxel-biomes');
+//var WorldBuilder = require('voxel-biomes');
 var Player = require('voxel-player');
 var fly = require('voxel-fly');
 var highlight = require('voxel-highlight');
 
 //Make The Biomes
-var builder = new WorldBuilder();
+/*var builder = new WorldBuilder();
 builder.addBiome(require('voxel-biomes/biomes/hills'));
 builder.addBiome(require('voxel-biomes/biomes/badlands'));
 builder.addBiome(require('voxel-biomes/biomes/forest'));
@@ -19,14 +19,28 @@ builder.addBiome(require('voxel-biomes/biomes/desert'));
 
 var generator = builder.buildGenerator(
     WorldBuilder.Segmenters.primes()
-);
+);*/
 
 //Make the Game
+var chunkWorker = new Worker('client-worker.js');
+chunkWorker.onmessage = function(e) {
+    var chunk = e.data;
+    chunkCache[chunk.position.join(':')] = chunk;
+    game.voxels.emit(
+        'missingChunk',
+        chunk.position
+    );
+}
+var emptyChunk = new Int8Array(32*32*32);
+var chunkCache = {};
 var game = createGame({
     generateVoxelChunk: function(low, high, x, y, z){
+        var key = [x, y, z].join(':');
+        if(chunkCache[key]) return chunkCache[key];
+        chunkWorker.postMessage([x, y, z]);
         return {
             position : [x, y, z],
-            voxels : generator.generateSubmesh(x, y, z),
+            voxels : emptyChunk,
             dims : [32, 32, 32]
         };
     },
