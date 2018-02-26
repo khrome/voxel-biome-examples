@@ -357,7 +357,7 @@ module.exports = {
     }
 }
 
-},{"voxel-generators":31}],4:[function(require,module,exports){
+},{"voxel-generators":33}],4:[function(require,module,exports){
 
 module.exports = {
     name : 'desert',
@@ -408,9 +408,7 @@ module.exports = {
         3 : 'minecraft:log',
         4 : 'minecraft:leaves',
     },
-    ground : function(subX, subY, subZ, context){
-        var trees = [];
-        var rand;
+    groundGeometry : function(subX, subY, subZ, context){
         var lower = 8;
         var upper = 12;
         var trees = new Generators.Objects.Trees({
@@ -418,26 +416,24 @@ module.exports = {
             groundHeightLow : lower,
             random : context.random
         });
+        var geometry = new Biomes.GeometryReducer(
+            Generators.SeamlessNoiseFactory(
+                context.seed,
+                Generators.Noise.perlin(context.random),
+                lower, upper
+            )
+        );
         for(var x=0; x < 32; x++){
             for(var z=0; z < 32; z++){
-                if((context.random()*40) < 1){
-                    trees.addTree(x, z, 26, 3);
-                }
-                trees[x + z*32] = rand < 1?Math.floor(11+context.random()*15):0;
+                if((context.random()*35) < 1) trees.addTree(x, z, 26, 3);
             }
         }
-        var treeRender = trees.buildGenerator();
-        return Generators.SeamlessNoiseFactory(
-            context.seed,
-            Generators.Noise.perlin(context.random),
-            lower, upper, function(x, y, z, value){
-                return treeRender(x, y, z, value);
-            }
-        );
+        geometry.add(trees);
+        return geometry;
     }
 }
 
-},{"voxel-generators":31}],7:[function(require,module,exports){
+},{"voxel-generators":33}],7:[function(require,module,exports){
 var Generators = require('voxel-generators');
 
 module.exports = {
@@ -458,7 +454,7 @@ module.exports = {
     }
 }
 
-},{"voxel-generators":31}],8:[function(require,module,exports){
+},{"voxel-generators":33}],8:[function(require,module,exports){
 var Generators = require('voxel-generators');
 
 module.exports = {
@@ -478,7 +474,7 @@ module.exports = {
     }
 }
 
-},{"voxel-generators":31}],9:[function(require,module,exports){
+},{"voxel-generators":33}],9:[function(require,module,exports){
 
 module.exports = {
     name : 'plains',
@@ -522,8 +518,9 @@ module.exports = {
     }
 }
 
-},{"voxel-generators":31}],11:[function(require,module,exports){
-var Generators = require('voxel-generators');
+},{"voxel-generators":33}],11:[function(require,module,exports){
+var Biomes = require('../voxel-biomes');
+var Houses = require('voxel-generators/objects/houses');
 
 module.exports = {
     name : 'village',
@@ -533,17 +530,37 @@ module.exports = {
         2 : 'minecraft:dirt',
         3 : 'minecraft:stone'
     },
-    ground : function(subX, subY, subZ, context){
-        return function(x, y, z){
+    groundGeometry : function(subX, subY, subZ, context){
+        var houses = new Houses({});
+        var geometry = new Biomes.GeometryReducer(function(x, y, z){
             if(y==10) return 1;
             if(y<10)return 2;
             return 0;
-        }
+        });
+        //*
+        for(var x=3; x < 29; x++){
+            for(var z=3; z < 29; z++){
+                if((context.random()*60) < 1) houses.add({
+                    x:x,
+                    y:10,
+                    z:z,
+                    material:3
+                });
+            }
+        }//*/
+        //houses.add({ x:0, y:10, z:0, material:3 });
+        //houses.add({ x:8, y:10, z:24, material:3 });
+        //houses.add({ x:24, y:10, z:8, material:3 });
+        //houses.add({ x:24, y:10, z:24, material:3 });
+        geometry.add(houses);
+        return geometry;
     }
 }
 
-},{"voxel-generators":31}],12:[function(require,module,exports){
+},{"../voxel-biomes":16,"voxel-generators/objects/houses":31}],12:[function(require,module,exports){
 var Generators = require('voxel-generators');
+
+var Biomes = require('../voxel-biomes');
 
 module.exports = {
     name : 'woods',
@@ -554,7 +571,7 @@ module.exports = {
         3 : 'minecraft:log',
         4 : 'minecraft:leaves',
     },
-    ground : function(subX, subY, subZ, context){
+    /*ground : function(subX, subY, subZ, context){
         var trees = [];
         var rand;
         var lower = 8;
@@ -580,10 +597,33 @@ module.exports = {
                 return treeRender(x, y, z, value);
             }
         );
+    }*/
+    groundGeometry : function(subX, subY, subZ, context){
+        var lower = 8;
+        var upper = 13;
+        var trees = new Generators.Objects.Trees({
+            groundHeightHigh : upper,
+            groundHeightLow : lower,
+            random : context.random
+        });
+        var geometry = new Biomes.GeometryReducer(
+            Generators.SeamlessNoiseFactory(
+                context.seed,
+                Generators.Noise.perlin(context.random),
+                lower, upper
+            )
+        );
+        for(var x=0; x < 32; x++){
+            for(var z=0; z < 32; z++){
+                if((context.random()*40) < 1) trees.addTree(x, z, 21, 3);
+            }
+        }
+        geometry.add(trees);
+        return geometry;
     }
 }
 
-},{"voxel-generators":31}],13:[function(require,module,exports){
+},{"../voxel-biomes":16,"voxel-generators":33}],13:[function(require,module,exports){
 'use strict';
 
 /**
@@ -737,10 +777,120 @@ function BiomeReducer(options){
 
 BiomeReducer.Segmenters = require('./voxel-biome-segmenters');
 
+BiomeReducer.GeometryReducer = function(chunkFunc){
+    this.chunk = new Int8Array(32*32*32);
+    for(var x=0; x < 32; x++){
+        for(var y=0; y < 32; y++){
+            for(var z=0; z < 32; z++){
+                this.chunk[x*32*32 + y*32 + z] = chunkFunc(x, y, z);
+            }
+        }
+    }
+    this.objects = [];
+}
+
+BiomeReducer.GeometryReducer.prototype.add = function(ob, offset){
+    this.objects.push({data:ob, offset:offset});
+}
+
+var writeInto = function(object, destination, dontOverwrite){
+    object.forEach(function(coord){
+        var x = coord[0];
+        var y = coord[1];
+        var z = coord[2];
+        var arrOff = x*32*32 + y*32 + z;
+        var material = coord[3] || 1;
+        if(!destination[arrOff] || !dontOverwrite) destination[arrOff] = material;
+    });
+}
+
+//build a complete set of voxels which reduces the overall cost
+BiomeReducer.GeometryReducer.prototype.integrated = function(context){
+    var result = this.chunk.slice(0);
+    var objects = this.objects;
+    return function(){
+        objects.forEach(function(geom){
+            if(geom.data.writeInto){
+                geom.data.writeInto(context.random, result, true);
+            }else{
+                var offset = geom.offset || {};
+                var offsetGeometry = geom.data.map(function(coords){
+                    return [
+                        coords[0] + (offset.x || 0),
+                        coords[1] + (offset.y || 0),
+                        coords[2] + (offset.z || 0)
+                    ]
+                });
+                writeInto(offsetGeometry, result, true);
+            }
+        });
+        return result;
+    }
+}
+
+//output a function factory which minimizes the calculation of a single voxel
+BiomeReducer.GeometryReducer.prototype.calculated = function(context){
+    transformedObjects = [];
+    this.objects.forEach(function(geom, index){
+        var offset = geom.offset || {};
+        var min = {};
+        var max = {};
+        transformedObjects[index] = geom.data.buildGenerator?geom.data:{geometry:geom.data.map(function(coords){
+            var result =  [
+                coords[0] + (offset.x || 0),
+                coords[1] + (offset.y || 0),
+                coords[2] + (offset.z || 0)
+            ];
+            if((!min.x) || min.x > result[0]);
+            if((!min.y) || min.y > result[0]);
+            if((!min.z) || min.z > result[0]);
+            if((!max.x) || max.x < result[0]);
+            if((!max.y) || max.y < result[0]);
+            if((!max.z) || max.z < result[0]);
+            return result;
+        })};
+        transformedObjects[index].bounds = {min:min, max:max};
+    });
+    var chunk = this.chunk;
+    return function(x, y, z){
+        var offset = x*32*32 + y*32 + z;
+        if(chunk[offset]) return chunk[offset];
+        var result = 0;
+        transformedObjects.forEach(function(o){
+            if(o.buildGenerator || o.generator){
+                result = (o.generator || (o.generator = o.buildGenerator(context.random)))(x, y, z, 0);
+                return;
+            }
+            if(result) return;
+            var b = o.bounds;
+            if(
+                x >= b.min.x &&
+                x <= b.max.x &&
+                y >= b.min.y &&
+                y <= b.max.y &&
+                z >= b.min.z &&
+                z <= b.max.z
+            ){
+                var matching = o.geometry.filter(function(coord){
+                    return x == coord[0] && y == coord[1] && z == coord[2];
+                });
+                if(matching[0]) result = matching[0][3] || 1;
+            }
+        });
+        //console.log('@@', result);
+        return result;
+    }
+}
+
 BiomeReducer.prototype.addBiome = function(biome){
     if(!biome) throw new Error('No biome passed');
     if(!biome.name) throw new Error('Biomes require a name');
-    if((biome.ground || biome.underground || biome.air) && !biome.generator){
+    if((
+        biome.ground ||
+        biome.groundGeometry ||
+        biome.underground ||
+        biome.air
+    ) && !biome.generator){
         var ob = this;
         var lookup = ob.options.blockLookup;
         //if we have a map, let's convert distill it
@@ -748,18 +898,18 @@ BiomeReducer.prototype.addBiome = function(biome){
             JSON.parse(JSON.stringify(biome[lookup.mapName]));
         var mapper;
         if(map){
-            //console.log('+>>', map)
             //replace each index with it's rendered index
             Object.keys(map).forEach(function(key){
                 var block = lookup.block(map[key]);
-                //console.log(key, lookup.block(map[key]));
                 map[key] = lookup.block(map[key]).flatIndex;
-                //console.log('=> '+map[key]);
             });
-            //console.log('->>', map)
             mapper = function(value){
-                //console.log(value, map[value])
                 return map[value] || value;
+            }
+        }
+        if(biome.groundGeometry){
+            biome.ground = function(subX, subY, subZ, context){
+                return biome.groundGeometry(subX, subY, subZ, context).calculated(context);
             }
         }
         var ground = biome.ground || function(x, y, z){
@@ -794,7 +944,10 @@ BiomeReducer.prototype.addBiome = function(biome){
     }
     if(
         !(biome.generator || biome.generate)
-    ) throw new Error('Biomes require a generator');
+    ){
+        console.log(biome);
+        throw new Error('Biomes require a generator');
+    }
     if(!biome.rarity) biome.rarity = 'common';
     if(rarities.indexOf(biome.rarity) === -1){
         throw new Error('Unknown rarity:'+biome.rarity);
@@ -821,8 +974,9 @@ function generateSubmesh(x, y, z, subgen){
     return data;
 }
 
-BiomeReducer.prototype.buildGenerator = function(algorithm){
+BiomeReducer.prototype.buildGenerator = function(algorithm, offsets){
     var fn;
+    if(!offsets) offsets = {};
     if(typeof algorithm == 'function'){
         fn = algorithm;
     }else{
@@ -836,19 +990,37 @@ BiomeReducer.prototype.buildGenerator = function(algorithm){
         uncommon : uncommon,
         rare : rare,
     }
-    var result = function(subX, subY, subZ){
+    var getSelection = function(subX, subY, subZ){
         var selection = fn(subX, subY, subZ);
         selection.seed = subX+'|'+subY+'|'+subZ;
-        selection.random = Generators.Random.seed(38);
+        selection.random = Generators.Random.seed(selection.seed);
+        return selection;
+    }
+    var result = function(subX, subY, subZ){
+        var selection = getSelection(subX, subY, subZ);
         var selectedBiomes = biomes[selection.rarity];
-        var index = selection.index % selectedBiomes.length; //wraparound
+        var index = (
+            selection.index + ( offsets[selection.rarity] || 0)
+        ) % selectedBiomes.length; //wraparound
         var biome = selectedBiomes[index];
         selection.type = biome.name;
         return biome.generator(subX, subY, subZ, selection);
     }
 
     result.generateSubmesh = function(x, y, z){
-        return generateSubmesh(x, y, z, result)
+        var selection = getSelection(x, y, z);
+        var selectedBiomes = biomes[selection.rarity];
+        var index = (
+            selection.index + ( offsets[selection.rarity] || 0)
+        ) % selectedBiomes.length; //wraparound
+        var biome = selectedBiomes[index];
+        if(biome.groundGeometry && y === 0){
+            //we can optimize!
+            var generator = biome.groundGeometry(x, y, z, selection).integrated(selection);
+            return generator();
+        }else{
+            return generateSubmesh(x, y, z, result);
+        }
     }
 
     return result;
@@ -856,7 +1028,95 @@ BiomeReducer.prototype.buildGenerator = function(algorithm){
 
 module.exports = BiomeReducer;
 
-},{"./voxel-biome-segmenters":15,"voxel-generators":31}],17:[function(require,module,exports){
+},{"./voxel-biome-segmenters":15,"voxel-generators":33}],17:[function(require,module,exports){
+'use strict';
+
+var hasOwn = Object.prototype.hasOwnProperty;
+var toStr = Object.prototype.toString;
+
+var isArray = function isArray(arr) {
+	if (typeof Array.isArray === 'function') {
+		return Array.isArray(arr);
+	}
+
+	return toStr.call(arr) === '[object Array]';
+};
+
+var isPlainObject = function isPlainObject(obj) {
+	if (!obj || toStr.call(obj) !== '[object Object]') {
+		return false;
+	}
+
+	var hasOwnConstructor = hasOwn.call(obj, 'constructor');
+	var hasIsPrototypeOf = obj.constructor && obj.constructor.prototype && hasOwn.call(obj.constructor.prototype, 'isPrototypeOf');
+	// Not own constructor property must be Object
+	if (obj.constructor && !hasOwnConstructor && !hasIsPrototypeOf) {
+		return false;
+	}
+
+	// Own properties are enumerated firstly, so to speed up,
+	// if last one is own, then all properties are own.
+	var key;
+	for (key in obj) { /**/ }
+
+	return typeof key === 'undefined' || hasOwn.call(obj, key);
+};
+
+module.exports = function extend() {
+	var options, name, src, copy, copyIsArray, clone;
+	var target = arguments[0];
+	var i = 1;
+	var length = arguments.length;
+	var deep = false;
+
+	// Handle a deep copy situation
+	if (typeof target === 'boolean') {
+		deep = target;
+		target = arguments[1] || {};
+		// skip the boolean and the target
+		i = 2;
+	}
+	if (target == null || (typeof target !== 'object' && typeof target !== 'function')) {
+		target = {};
+	}
+
+	for (; i < length; ++i) {
+		options = arguments[i];
+		// Only deal with non-null/undefined values
+		if (options != null) {
+			// Extend the base object
+			for (name in options) {
+				src = target[name];
+				copy = options[name];
+
+				// Prevent never-ending loop
+				if (target !== copy) {
+					// Recurse if we're merging plain objects or arrays
+					if (deep && copy && (isPlainObject(copy) || (copyIsArray = isArray(copy)))) {
+						if (copyIsArray) {
+							copyIsArray = false;
+							clone = src && isArray(src) ? src : [];
+						} else {
+							clone = src && isPlainObject(src) ? src : {};
+						}
+
+						// Never move original objects, clone them
+						target[name] = extend(deep, clone, copy);
+
+					// Don't bring in undefined values
+					} else if (typeof copy !== 'undefined') {
+						target[name] = copy;
+					}
+				}
+			}
+		}
+	}
+
+	// Return the modified object
+	return target;
+};
+
+},{}],18:[function(require,module,exports){
 module.exports = inherits
 
 function inherits (c, p, proto) {
@@ -887,7 +1147,7 @@ function inherits (c, p, proto) {
 //inherits(Child, Parent)
 //new Child
 
-},{}],18:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 "use strict"
 
 function iota(n) {
@@ -899,7 +1159,7 @@ function iota(n) {
 }
 
 module.exports = iota
-},{}],19:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 /*!
  * Determine if an object is a Buffer
  *
@@ -922,7 +1182,7 @@ function isSlowBuffer (obj) {
   return typeof obj.readFloatLE === 'function' && typeof obj.slice === 'function' && isBuffer(obj.slice(0, 0))
 }
 
-},{}],20:[function(require,module,exports){
+},{}],21:[function(require,module,exports){
 var iota = require("iota-array")
 var isBuffer = require("is-buffer")
 
@@ -1267,7 +1527,7 @@ function wrappedNDArrayCtor(data, shape, stride, offset) {
 
 module.exports = wrappedNDArrayCtor
 
-},{"iota-array":18,"is-buffer":19}],21:[function(require,module,exports){
+},{"iota-array":19,"is-buffer":20}],22:[function(require,module,exports){
 /*
  * A speed-improved perlin and simplex noise algorithms for 2D.
  *
@@ -1578,7 +1838,7 @@ module.exports = wrappedNDArrayCtor
   };
 
 })(typeof module === "undefined" ? this : module.exports);
-},{}],22:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 (function (global){
 'use strict';
 
@@ -1755,7 +2015,7 @@ function tostring(a) {
 mixkey(Math.random(), pool);
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],23:[function(require,module,exports){
+},{}],24:[function(require,module,exports){
 var events = require('events')
 var inherits = require('inherits')
 
@@ -1876,7 +2136,7 @@ Chunker.prototype.voxelAtPosition = function(pos, val) {
 }
 
 
-},{"events":1,"inherits":17}],24:[function(require,module,exports){
+},{"events":1,"inherits":18}],25:[function(require,module,exports){
 var chunker = require('./chunker')
 var ndarray = require('ndarray')
 
@@ -1979,7 +2239,7 @@ module.exports.generateExamples = function() {
 }
 
 
-},{"./chunker":23,"./meshers/culled":25,"./meshers/greedy":26,"./meshers/monotone":27,"./meshers/stupid":28,"./meshers/transgreedy":29,"ndarray":20}],25:[function(require,module,exports){
+},{"./chunker":24,"./meshers/culled":26,"./meshers/greedy":27,"./meshers/monotone":28,"./meshers/stupid":29,"./meshers/transgreedy":30,"ndarray":21}],26:[function(require,module,exports){
 //Naive meshing (with face culling)
 function CulledMesh(volume, dims) {
   //Precalculate direction vectors for convenience
@@ -2031,7 +2291,7 @@ if(exports) {
   exports.mesher = CulledMesh;
 }
 
-},{}],26:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 var GreedyMesh = (function() {
 //Cache buffer internally
 var mask = new Int32Array(4096);
@@ -2148,7 +2408,7 @@ if(exports) {
   exports.mesher = GreedyMesh;
 }
 
-},{}],27:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
 "use strict";
 
 var MonotoneMesh = (function(){
@@ -2401,7 +2661,7 @@ if(exports) {
   exports.mesher = MonotoneMesh;
 }
 
-},{}],28:[function(require,module,exports){
+},{}],29:[function(require,module,exports){
 //The stupidest possible way to generate a Minecraft mesh (I think)
 function StupidMesh(volume, dims) {
   var vertices = [], faces = [], x = [0,0,0], n = 0;
@@ -2437,7 +2697,7 @@ if(exports) {
   exports.mesher = StupidMesh;
 }
 
-},{}],29:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 var GreedyMesh = (function greedyLoader() {
     
 // contains all forward faces (in terms of scan direction)
@@ -2629,9 +2889,34 @@ if(exports) {
   exports.mesher = GreedyMesh;
 }
 
-},{}],30:[function(require,module,exports){
+},{}],31:[function(require,module,exports){
+var Geometry = require('../voxel-relative-geometry');
+var Objects = require('../voxel-objects');
+
+module.exports = Objects.implement({
+    build : function(config){
+        if(!(
+            config.x !== undefined &&
+            config.y !== undefined &&
+            config.z !== undefined
+        )){
+            console.log(config);
+            throw new Error('houses require x, y, z');
+        }
+        var result = Geometry.cube(4, true).map(function(coords){
+            return [config.x+coords[0], config.y+coords[1]+2, config.z+coords[2], config.material|| 1]
+        });
+        return result;
+    },
+    createOptions : function(context, callback){
+        callback(undefined, {});
+    }
+});
+
+},{"../voxel-objects":35,"../voxel-relative-geometry":37}],32:[function(require,module,exports){
 var Geometry = require('../voxel-relative-geometry')
 
+//trees predate the AbstractObject so they're special for now
 var Trees = function(options){
     this.options = options || {};
     if(!this.options.width) this.options.width = 32;
@@ -2665,8 +2950,8 @@ Trees.prototype.addTree = function(x, z, height, diameter, type){
 }
 
 var getOccuranceGenerator = Geometry.ocurranceOfSquareContainingGenerator;
-Trees.prototype.buildGenerator = function(randomFn){
-    var random = randomFn || this.options.random;
+
+Trees.prototype.createOptions = function(randomFn, callback){
     var groundHeights = [];
     var trees = this.trees;
     var rand;
@@ -2682,42 +2967,123 @@ Trees.prototype.buildGenerator = function(randomFn){
         var result = ob.options.groundHeight?
             ob.options.groundHeight:
             lower + Math.floor( //let's take a guess
-                random()*(upper-lower)
+                randomFn()*(upper-lower)
             );
         if(useIndex) groundHeights[index] = result;
         return result;
     }
-    var getOccurance = getOccuranceGenerator(trees, this.options.treeRadius || 1);
-    return function(x, y, z, value){
-        if(value) return value;
-        var treeHeight = trees[x + z*32];
-        //the trunk & top leaves
-        if(value === 0 && treeHeight && treeHeight >= y){
-            if(treeHeight > y) return 3;
-            if(treeHeight == y) return 4;
-        }
-        //branches
-        var groundHeight;
-        treeHeight = getOccurance(x, y, z, function(treeX, treeZ){
-            groundHeight = groundAt(treeX, treeZ, true);
-        });
-        if(!(treeHeight && groundHeight)) return value;
-        var branchHeight = groundHeight + 2;
-        if(
-            (value === 0) && //don't overwite voxels
-            y > branchHeight &&
-            y < treeHeight
-        ){
-            var test = (y-branchHeight) % 3 === 0;// ~2 clumps per tree
-            if(test) return 4;
-        }
-        return value;
+    callback(groundHeights, trees, lower, upper, treeTops, groundAt);
+}
+
+Trees.prototype.writeInto = function(randomFn, chunk, dontOverwrite){
+    var random = randomFn || this.options.random;
+    var v = function(x, y, z, value){
+        var offset = x *32*32 + y *32 + z;
+        if(value && dontOverwrite && chunk[offset]) return chunk[offset];//already has a value
+        if(value) return (chunk[offset] = value);
+        else return chunk[offset];
     }
+    var result;
+    var ob = this;
+    this.createOptions(random, function(groundHeights, trees, lower, upper, treeTops, groundAt){
+        var getOccurance = getOccuranceGenerator(trees, ob.options.treeRadius || 1);
+        for(var x=0; x < 32; x++){
+            for(var z=0; z < 32; z++){
+                var treeHeight = trees[x + z*32];
+                var groundHeight = upper;
+                if(treeHeight){
+                    for(var y=lower; y <= treeHeight; y++){
+                        if(!v(x, y, z)){
+                            if(y === treeHeight){
+                                v(x, y, z, 4);
+                            }else{
+                                v(x, y, z, 3);
+                            }
+                        }
+                        var branchHeight = groundHeight + 2;
+                        if(
+                            y > branchHeight &&
+                            y < treeHeight &&
+                            (y-branchHeight) % 3 === 0
+                        ){
+                            var coords = Geometry.cube(2);
+                            coords.forEach(function(coord){
+                                v(x+coord[0], y+coord[1], z+coord[2], 4, true);
+                            })
+                        }
+                    }
+                }
+            }
+        }
+        result = function(x, y, z, value){
+            if(value) return value;
+            var treeHeight = trees[x + z*32];
+            //the trunk & top leaves
+            if(value === 0 && treeHeight && treeHeight >= y){
+                if(treeHeight > y) return 3;
+                if(treeHeight == y) return 4;
+            }
+            //branches
+            var groundHeight;
+            treeHeight = getOccurance(x, y, z, function(treeX, treeZ){
+                groundHeight = groundAt(treeX, treeZ, true);
+            });
+            if(!(treeHeight && groundHeight)) return value;
+            var branchHeight = groundHeight + 2;
+            if(
+                (value === 0) && //don't overwite voxels
+                y > branchHeight &&
+                y < treeHeight
+            ){
+                var test = (y-branchHeight) % 3 === 0;// ~2 clumps per tree
+                if(test) return 4;
+            }
+            return value;
+        }
+    })
+    return result;
+}
+
+Trees.prototype.buildGenerator = function(randomFn){
+    var random = randomFn || this.options.random;
+    var result;
+    var ob = this;
+    console.log('??');
+    this.createOptions(random, function(groundHeights, trees, lower, upper, treeTops, groundAt){
+        var getOccurance = getOccuranceGenerator(trees, ob.options.treeRadius || 1);
+        result = function(x, y, z, value){
+            if(value) return value;
+            var treeHeight = trees[x + z*32];
+            //the trunk & top leaves
+            if(value === 0 && treeHeight && treeHeight >= y){
+                if(treeHeight > y) return 3;
+                if(treeHeight == y) return 4;
+            }
+            //branches
+            var groundHeight;
+            treeHeight = getOccurance(x, y, z, function(treeX, treeZ){
+                groundHeight = groundAt(treeX, treeZ, true);
+            });
+            if(!(treeHeight && groundHeight)) return value;
+            var branchHeight = groundHeight + 2;
+            if(
+                (value === 0) && //don't overwite voxels
+                y > branchHeight &&
+                y < treeHeight
+            ){
+                var test = (y-branchHeight) % 3 === 0;// ~2 clumps per tree
+                if(test) return 4;
+            }
+            return value;
+        }
+    })
+    console.log('!!', result);
+    return result;
 }
 
 module.exports = Trees;
 
-},{"../voxel-relative-geometry":35}],31:[function(require,module,exports){
+},{"../voxel-relative-geometry":37}],33:[function(require,module,exports){
 var voxel = require('voxel');
 
 //Sphere, Noise, DenseNoise, Checker, Hill, Valley, HillyTerrain
@@ -2806,7 +3172,7 @@ Generators.Objects = require('./voxel-objects');
 
 module.exports = Generators;
 
-},{"./voxel-noise":32,"./voxel-objects":33,"./voxel-random":34,"./voxel-relative-geometry":35,"voxel":24}],32:[function(require,module,exports){
+},{"./voxel-noise":34,"./voxel-objects":35,"./voxel-random":36,"./voxel-relative-geometry":37,"voxel":25}],34:[function(require,module,exports){
 var noise = require('perlin').noise;
 
 var Noise = {}
@@ -2920,16 +3286,121 @@ Noise.TileFactory = function(seed, algorithm, lower, upper, map){
 
 module.exports = Noise;
 
-},{"perlin":21}],33:[function(require,module,exports){
+},{"perlin":22}],35:[function(require,module,exports){
 var Objects = {};
+var extend = require('extend')
 
+var AbstractObjects = function(){
+    this.objects = [];
+};
+
+AbstractObjects.implement = function(cls){
+    var cons = typeof cls == 'function'?cls:function(){};
+    var syntheticConstructor = function(){
+        cons.apply(this, arguments)
+        AbstractObjects.apply(this, arguments);
+    }
+    var clone = extend(AbstractObjects.prototype);
+    syntheticConstructor.prototype = clone;
+    syntheticConstructor.constructor = syntheticConstructor;
+    Object.keys(cls.prototype || cls).forEach(function(key){
+        syntheticConstructor.prototype[key] = (cls.prototype || cls)[key];
+    });
+    return syntheticConstructor;
+};
+
+AbstractObjects.prototype.build = function(configuration){
+    throw new Error('Build must be implemented!');
+    // returns [][]
+};
+
+AbstractObjects.prototype.add = function(configuration){
+    this.objects.push(this.build(configuration));
+};
+
+AbstractObjects.prototype.createOptions = function(context, callback){
+    callback(undefined, {})
+};
+
+var options;
+AbstractObjects.prototype.getOptions = function(context, callback){
+    if(options){
+        return callback(undefined, options);
+    }else{
+        this.createOptions(context, function(err, options){
+            return callback(undefined, options);
+        });
+    }
+};
+
+AbstractObjects.prototype.writeInto = function(context, chunk, dontOverwrite){
+    var objects = this.objects;
+    this.getOptions(context, function(config){
+        var object;
+        var g;
+        var index;
+        for(var lcv=0; lcv< objects.length; lcv++){
+            object = objects[lcv];
+            for(var gPos=0; gPos<object.length; gPos++){
+                g = object[gPos];
+                index = g[0]*32*32 + g[1]*32 + g[2];
+                chunk[index] = g[3] || 1;
+            }
+        }
+    });
+}
+
+AbstractObjects.prototype.buildGenerator = function(context){
+    var transformedObjects = this.objects.map(function(object){
+        var min = {};
+        var max = {};
+        object.forEach(function(coords){
+            if((!min.x) || min.x > coords[0]) min.x = coords[0];
+            if((!min.y) || min.y > coords[1]) min.y = coords[1];
+            if((!min.z) || min.z > coords[2]) min.z = coords[2];
+            if((!max.x) || max.x < coords[0]) max.x = coords[0];
+            if((!max.y) || max.y < coords[1]) max.y = coords[1];
+            if((!max.z) || max.z < coords[2]) max.z = coords[2];
+        })
+        return {
+            geometry : object,
+            bounds : {min:min, max:max}
+        }
+    });
+    this.getOptions(context.random, function(options){
+        result = function(x, y, z, value){
+            if(value) return value;
+            var b, g;
+            for(var lcv=0; lcv< transformedObjects.length; lcv++){
+                g = transformedObjects[lcv].geometry;
+                b = transformedObjects[lcv].bounds;
+                //console.log('!', g.length, b)
+                if(
+                    x >= b.min.x &&
+                    x <= b.max.x &&
+                    y >= b.min.y &&
+                    y <= b.max.y &&
+                    z >= b.min.z &&
+                    z <= b.max.z
+                ){
+                    var matching = g.filter(function(coord){
+                        return x == coord[0] && y == coord[1] && z == coord[2];
+                    });
+                    if(matching[0]) return matching[0][3] || 1;
+                }
+            }
+        }
+    });
+    return result;
+}
+Objects = AbstractObjects;
 Objects.Trees = require('./objects/trees');
 
 
 
 module.exports = Objects;
 
-},{"./objects/trees":30}],34:[function(require,module,exports){
+},{"./objects/trees":32,"extend":17}],36:[function(require,module,exports){
 var rand = require('seed-random');
 var Random = {};
 Random.seed = function(seed){
@@ -2938,7 +3409,7 @@ Random.seed = function(seed){
 
 module.exports = Random;
 
-},{"seed-random":22}],35:[function(require,module,exports){
+},{"seed-random":23}],37:[function(require,module,exports){
 var combinations2D = function(arr){ //omits 0, 0
     var a;
     var b;
@@ -2949,6 +3420,27 @@ var combinations2D = function(arr){ //omits 0, 0
             if(! (
                 a === 0 && b === 0
             )) results.push([arr[a], arr[b]]);
+        }
+    }
+    return results;
+}
+
+var combinations3D = function(arrA, arrB, arrC){
+    if(arrA && arrB && !arrC){
+        arrC = [0];
+    }
+    if(arrA && (!arrB) && (!arrC)){
+        arrB = arrC = arrA;
+    }
+    var a;
+    var b;
+    var c;
+    var results = [];
+    for(a=0; a < arrA.length; a++){
+        for(b=0; b < arrB.length; b++){
+            for(c=0; c < arrC.length; c++){
+                results.push([arrA[a], arrB[b], arrC[c]]);
+            }
         }
     }
     return results;
@@ -3005,6 +3497,63 @@ var relativeToOccurances2D = function(x, z, geometry, locations, tileSize, cb){
 var distanceCache = {};
 
 var RelativeGeometry = {};
+RelativeGeometry.intersection = function(shape1, shape2){
+    var copy = shape.slice(0);
+    shape2.forEach(function(coord){
+        if(shape1.indexOf(coord) === -1) copy.push(coord)
+    })
+};
+RelativeGeometry.cube = function(size, hollow){ //odd cube
+    var newSize = Math.floor(size/2);
+    var all = combinations3D(allSquareDistances(newSize));
+    if(hollow) all = all.filter(function(coords){
+        var xFactor = Math.abs(coords[0]) === newSize;
+        var yFactor = Math.abs(coords[1]) === newSize;
+        var zFactor = Math.abs(coords[2]) === newSize;
+        var result = xFactor || yFactor || zFactor;
+        return result;
+    });
+    return all;
+};
+
+RelativeGeometry.box = function(sizeX, sizeY, sizeZ, hollow){
+    var all = combinations3D(
+        allSquareDistances(sizeX),
+        allSquareDistances(sizeY),
+        allSquareDistances(sizeZ)
+    );
+    if(hollow) return all.filter(function(coords){
+        return
+            Math.abs(coords[0]) === sizeX ||
+            Math.abs(coords[1]) === sizeY ||
+            Math.abs(coords[2]) === sizeZ ;
+    });
+    return all;
+};
+
+RelativeGeometry.sphere = function(radius, hollow){
+    var diameter = 2 * radius;
+    var coords = [];
+    for(var x; x < diameter; x++){
+        for(var y; y < diameter; y++){
+            for(var z; z < diameter; z++){
+                if(x*x+y*y+z*z <= radius*radius){
+                    if(hollow){
+                        if(x*x+y*y+z*z > (radius-1)*(radius-1)){
+                            coords.push([x, y, z]);
+                        }
+                    }else coords.push([x, y, z]);
+                }
+            }
+        }
+    }
+    return x*x+y*y+z*z <= 15*15 ? 1 : 0
+};
+
+RelativeGeometry.ellipse = function(radius, relativeFocus, hollow){
+
+};
+
 var locationOfShapeContainingGenerator = function(relativeShape, locations, tileSize){
     return function(x, z, cb){
         return relativeToOccurances2D(

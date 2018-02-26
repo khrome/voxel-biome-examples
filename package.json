@@ -30,10 +30,15 @@
         "voxel-player": "^0.1.0"
     },
     "scripts": {
-        "build-client": "browserify client.js -o /docs/client-app.js",
+        "build-and-run": "npm run build-worker; npm run build-client; npm run client",
+        "build-client": "browserify client.js -o docs/client-app.js",
+        "build-worker": "browserify chunk-worker.js -o docs/client-worker.js",
         "client": "cd docs; python -m SimpleHTTPServer",
         "server": "node server.js",
         "app": "npm run build-client; npm run server"
+    },
+    "bin": {
+        "test-biome": "bin/test.js"
     },
     "devDependencies": {},
     "optionalDependencies": {},

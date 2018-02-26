@@ -8,6 +8,11 @@ Client Only
 
 Check out the working [demo](https://khrome.github.io/voxel-biome-examples/index.html) then grab [the source](https://github.com/khrome/voxel-biome-examples/blob/master/client.js)
 
+Testing a specific biome:
+-------------------------
+
+    test-biome \<module location\>
+
 Client & Server
 ---------------
 (Source Only)
